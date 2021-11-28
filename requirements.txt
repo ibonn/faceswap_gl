@@ -1,0 +1,7 @@
+opencv-python
+mediapipe
+pygame
+pyopengl
+numpy
+pillow
+progressbar
