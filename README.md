@@ -8,9 +8,3 @@ This implementation finds facial landmarks on both the source and destination im
 | Source | Destination | Texture | 3D face | Result |
 | ------ | ------- | ----------- | ------------------ | ------ |
 | ![Source image](images/src.jpg) | ![Destination image](images/dst.png) | ![Texture generated from source image](images/texture.png) | ![Texture applied to 3D model positioned according to the face on the destination image](images/3dface.png) | ![Face swap result](images/result.png) |
-
-## Installation
-
-## Use on videos
-
-## Use on images
