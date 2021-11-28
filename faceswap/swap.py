@@ -131,9 +131,9 @@ def swap_face(src, dst, output, texture_size=256, border_size=100):
     # glLightfv(GL_LIGHT0, GL_DIFFUSE, (1.0, 1.0, 1.0, 1.0))
     # glEnable(GL_LIGHT0)
     # glEnable(GL_LIGHTING)
-    # glEnable(GL_COLOR_MATERIAL)
-    # glEnable(GL_DEPTH_TEST)
-    # glShadeModel(GL_SMOOTH)
+    glEnable(GL_COLOR_MATERIAL)
+    glEnable(GL_DEPTH_TEST)
+    glShadeModel(GL_SMOOTH)
 
     # Load material and generate OpenGL object
     obj.load_material("data/face.mtl")
