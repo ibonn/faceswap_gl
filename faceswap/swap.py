@@ -6,6 +6,7 @@ TODO
     * Add more filters
     * Raise custom exception instead of RuntimeError
 """
+import os
 import cv2
 import mediapipe as mp
 import sys, pygame
@@ -96,7 +97,7 @@ def map_image(src, src_landmarks, dst_landmarks, dst_width, dst_height, triangle
 
     return mapped
 
-def swap_face(src, dst, output, texture_size=256, border_size=100):
+def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False):
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -143,6 +144,10 @@ def swap_face(src, dst, output, texture_size=256, border_size=100):
     # TODO make codec available through args
     out_video = cv2.VideoWriter(output, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
 
+    if output_mask:
+        out_name, ext = os.path.splitext(output)
+        mask_video = cv2.VideoWriter(f"{out_name}_mask{ext}", cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+
     try:
         with progressbar.ProgressBar(max_value=num_frames) as pbar:
             while True:
@@ -188,6 +193,9 @@ def swap_face(src, dst, output, texture_size=256, border_size=100):
                     mask = np.zeros_like(frame, dtype=np.uint8)
                     cv2.fillConvexPoly(mask, hull, (255, 255, 255))
 
+                    if output_mask:
+                        mask_video.write(face)
+
                     # Combine images
                     merged = cv2.seamlessClone(face, frame, mask, (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2), cv2.NORMAL_CLONE)
                     out_video.write(merged)
@@ -205,6 +213,9 @@ def swap_face(src, dst, output, texture_size=256, border_size=100):
     dst_video.release()
     out_video.release()
 
+    if output_mask:
+        mask_video.release()
+
 
 if __name__ == "__main__":
     import sys
@@ -216,7 +227,8 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dst", type=str, action="store", required=True, help="Path to the destination video. If no face is found the output video will be a copy of this video")
     parser.add_argument("-o", "--output", type=str, action="store", required=True, help="Path where the resulting video will be saved")
     parser.add_argument("-t", "--texture", type=int, action="store", required=False, default=256, help="Texture resolution")
-    parser.add_argument("-b", "--border", type=int, action="store", required=False, default=100, help="Padding size. Currently does nothing as this feature is yet not implemented")
+    parser.add_argument("-b", "--border", type=int, action="store", required=False, default=100, help="Padding size. Currently does nothing as this feature is not implemented yet")
+    parser.add_argument("-m", "--mask", action="store_true", help="Save mask video")
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
@@ -227,6 +239,7 @@ if __name__ == "__main__":
             output=parsed_args.output, 
             texture_size=parsed_args.texture, 
             border_size=parsed_args.border,
+            output_mask=parsed_args.mask,
         )
     except RuntimeError as e:
         print(f"[!] ERROR: {e}")
