@@ -1,0 +1,4 @@
+**.pyc
+faceswap/data/face_texture.png
+in/*
+out/*
