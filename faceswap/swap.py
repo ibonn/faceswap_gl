@@ -124,6 +124,8 @@ def get_writer(path, fps, width, height):
 
         return None
 
+    
+def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, use_mouth_model=False):
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -140,6 +142,9 @@ def get_writer(path, fps, width, height):
         raise RuntimeError("The source image does not contain any face")
     
     # Load face obj
+    if use_mouth_model:
+        obj = OBJ("data/canonical_face_model_mouth.obj", swap=True)
+    else:
     obj = OBJ("data/canonical_face_model.obj", swap=True)
 
     # Generate material
@@ -219,6 +224,11 @@ def get_writer(path, fps, width, height):
                     mask = np.zeros_like(frame, dtype=np.uint8)
                     cv2.fillConvexPoly(mask, hull, (255, 255, 255))
 
+                    if use_mouth_model:
+                        mouth = np.zeros_like(face)
+                        mouth[face[:, :] != (0, 0, 0)] = 255
+                        mask = cv2.bitwise_and(mask, mouth)
+
                     if output_mask:
                         mask_video.write(face)
 
@@ -255,6 +265,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--texture", type=int, action="store", required=False, default=256, help="Texture resolution")
     parser.add_argument("-b", "--border", type=int, action="store", required=False, default=100, help="Padding size. Currently does nothing as this feature is not implemented yet")
     parser.add_argument("-m", "--mask", action="store_true", help="Save mask video")
+    parser.add_argument("--use_mouth_model", action="store_true", help="Use the model with the uncovered mouth")
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
@@ -266,6 +277,7 @@ if __name__ == "__main__":
             texture_size=parsed_args.texture, 
             border_size=parsed_args.border,
             output_mask=parsed_args.mask,
+            use_mouth_model=parsed_args.use_mouth_model,
         )
     except RuntimeError as e:
         print(f"[!] ERROR: {e}")
