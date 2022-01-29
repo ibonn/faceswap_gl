@@ -8,6 +8,7 @@ TODO
 """
 import os
 import cv2
+import subprocess
 import mediapipe as mp
 import sys, pygame
 from pygame.locals import *
@@ -125,7 +126,7 @@ def get_writer(path, fps, width, height):
         return None
 
     
-def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, use_mouth_model=False):
+def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, copy_audio=False, use_mouth_model=False):
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -249,6 +250,13 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
     dst_video.release()
     out_video.release()
 
+    if copy_audio:
+        print("[*] Copying audio...")
+        subprocess.Popen(f"ffmpeg -i {dst} -vn -acodec copy data/audio.aac", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
+        subprocess.Popen(f"ffmpeg -i {output} -i data/audio.aac -c:v copy -c:a aac data/temp.mp4", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).wait()
+        os.remove(output)
+        os.rename("data/temp.mp4", output)
+
     if output_mask:
         mask_video.release()
 
@@ -256,6 +264,15 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
 if __name__ == "__main__":
     import sys
     import argparse
+
+    def check_valid_args(args):
+        if args.audio:
+            try:
+                subprocess.Popen("ffmpeg", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except FileNotFoundError:
+                print("[!] Error: The -a/--audio option requires ffmpeg")
+                return False
+        return True
 
     parser = argparse.ArgumentParser()
 
@@ -265,10 +282,12 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--texture", type=int, action="store", required=False, default=256, help="Texture resolution")
     parser.add_argument("-b", "--border", type=int, action="store", required=False, default=100, help="Padding size. Currently does nothing as this feature is not implemented yet")
     parser.add_argument("-m", "--mask", action="store_true", help="Save mask video")
+    parser.add_argument("-a", "--audio", action="store_true", help="Copy the audio from the original video. Requires FFMPEG")
     parser.add_argument("--use_mouth_model", action="store_true", help="Use the model with the uncovered mouth")
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
+    if check_valid_args(parsed_args):
     try:
         swap_face(
             src=parsed_args.src, 
@@ -277,6 +296,7 @@ if __name__ == "__main__":
             texture_size=parsed_args.texture, 
             border_size=parsed_args.border,
             output_mask=parsed_args.mask,
+                copy_audio=parsed_args.audio,
             use_mouth_model=parsed_args.use_mouth_model,
         )
     except RuntimeError as e:
