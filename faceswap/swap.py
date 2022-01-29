@@ -17,14 +17,28 @@ from OpenGL.GLU import *
 import numpy as np
 from PIL import Image, ImageOps
 import progressbar
+import mimetypes
 
 from obj_parser import OBJ
+
+mimetypes.init()
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face_mesh = mp.solutions.face_mesh
 
 pygame.init()
+
+class ImageWriter:
+    def __init__(self, path) -> None:
+        self._path = path
+
+
+    def write(self, frame):
+        return cv2.imwrite(self._path, frame)
+
+    def release(self):
+        pass
 
 def add_border(image, size=100):
     height, width, channels = image.shape
@@ -97,7 +111,19 @@ def map_image(src, src_landmarks, dst_landmarks, dst_width, dst_height, triangle
 
     return mapped
 
-def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False):
+def get_writer(path, fps, width, height):
+
+    mimestart = mimetypes.guess_type(path)[0]
+    if mimestart != None:
+        mimestart = mimestart.split('/')[0]
+
+        if mimestart == "video":
+            return cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+        elif mimestart == "image":
+            return ImageWriter(path)
+
+        return None
+
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -142,7 +168,7 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
 
     # Create output video
     # TODO make codec available through args
-    out_video = cv2.VideoWriter(output, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+    out_video = get_writer(output, fps, width, height)
 
     if output_mask:
         out_name, ext = os.path.splitext(output)
