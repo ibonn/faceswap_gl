@@ -18,7 +18,8 @@ git clone https://github.com/ibonn/faceswap_gl.git
 
 Install required modules
 ```
-pip install -r cd faceswap_gl/requirements.txt
+cd faceswap_gl/
+pip install -r requirements.txt
 ```
 
 ## Usage
