@@ -43,7 +43,6 @@ class ImageWriter:
         pass
 
 
-
 def get_landmarks(img, flip=False, detection_confidence=0.9, tracking_confidence=0.9):
     with mp_face_mesh.FaceMesh(min_detection_confidence=detection_confidence, min_tracking_confidence=tracking_confidence) as face_mesh:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -114,6 +113,7 @@ def get_writer(path, fps, width, height):
 
         return None
 
+
 def trim(image, p):
     h, w, _ = image.shape
 
@@ -121,6 +121,7 @@ def trim(image, p):
     h_o = h - 2 * p
 
     return image[p:h_o+p, p:w_o+p, :]
+
 
 def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, copy_audio=False, use_mouth_model=False, preview=True):
     dst_video = cv2.VideoCapture(dst)
@@ -183,77 +184,81 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
 
     try:
         for _ in tqdm.trange(num_frames):
-                success, frame = dst_video.read()
-                if not success:
-                    break
+            success, frame = dst_video.read()
+            if not success:
+                break
 
-            frame = cv2.copyMakeBorder(frame, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT)
+            frame = cv2.copyMakeBorder(
+                frame, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT)
 
-                # Find face
-                landmarks = get_landmarks(frame, flip=True)
-                if landmarks is None:
+            # Find face
+            landmarks = get_landmarks(frame, flip=True)
+            if landmarks is None:
                 frame = trim(frame, border_size)
-                    out_video.write(frame)
+                out_video.write(frame)
 
                 if preview:
-                    cv2.imshow('preview', cv2.resize(frame, (int(width * 0.2), int(height * 0.2))))
+                    cv2.imshow('preview', cv2.resize(
+                        frame, (int(width * 0.2), int(height * 0.2))))
                     cv2.waitKey(1)
 
-                else:
-                    obj.v = landmarks
-                    scaled_landmarks = np.array(
-                [(x * padded_width, y * padded_height) for x, y in np.delete(landmarks, 1, axis=1)]).astype(np.int32)
+            else:
+                obj.v = landmarks
+                scaled_landmarks = np.array([(x * padded_width, y * padded_height)
+                                            for x, y in np.delete(landmarks, 1, axis=1)]).astype(np.int32)
 
-                    obj.generate()
+                obj.generate()
 
-                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-                    glLoadIdentity()
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                glLoadIdentity()
 
-                    # Render
-                    glScale(2, 2, 2)
-                    glRotate(90, 1, 0, 0)
-                    glTranslatef(-0.5, 0.0, -0.5)
+                # Render
+                glScale(2, 2, 2)
+                glRotate(90, 1, 0, 0)
+                glTranslatef(-0.5, 0.0, -0.5)
 
-                    glPushMatrix()
-                    obj.render()
-                    glPopMatrix()
+                glPushMatrix()
+                obj.render()
+                glPopMatrix()
 
-                    # Get image from 3D model
-                    glPixelStorei(GL_PACK_ALIGNMENT, 1)
+                # Get image from 3D model
+                glPixelStorei(GL_PACK_ALIGNMENT, 1)
                 data = glReadPixels(0, 0, padded_width, padded_height,
-                                        GL_RGB, GL_UNSIGNED_BYTE)
-                    # I'm pretty sure all of this can be done with numpy avoiding PIL
-                image = Image.frombytes("RGB", (padded_width, padded_height), data)
-                    image = ImageOps.flip(image)
-                    face = np.array(image, dtype=np.uint8)
-                    face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
+                                    GL_RGB, GL_UNSIGNED_BYTE)
+                # I'm pretty sure all of this can be done with numpy avoiding PIL
+                image = Image.frombytes(
+                    "RGB", (padded_width, padded_height), data)
+                image = ImageOps.flip(image)
+                face = np.array(image, dtype=np.uint8)
+                face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
 
-                    # Get mask
-                    hull = cv2.convexHull(scaled_landmarks)
-                    rect = cv2.boundingRect(hull)
-                    mask = np.zeros_like(frame, dtype=np.uint8)
-                    cv2.fillConvexPoly(mask, hull, (255, 255, 255))
+                # Get mask
+                hull = cv2.convexHull(scaled_landmarks)
+                rect = cv2.boundingRect(hull)
+                mask = np.zeros_like(frame, dtype=np.uint8)
+                cv2.fillConvexPoly(mask, hull, (255, 255, 255))
 
-                    if use_mouth_model:
-                        mouth = np.zeros_like(face)
-                        mouth[face[:, :] != (0, 0, 0)] = 255
-                        mask = cv2.bitwise_and(mask, mouth)
+                if use_mouth_model:
+                    mouth = np.zeros_like(face)
+                    mouth[face[:, :] != (0, 0, 0)] = 255
+                    mask = cv2.bitwise_and(mask, mouth)
 
-                    if output_mask:
-                        mask_video.write(face)
+                if output_mask:
+                    mask_video.write(face)
 
-                    # Combine images
-                    merged = cv2.seamlessClone(
-                        face, frame, mask, (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2), cv2.NORMAL_CLONE)
+                # Combine images
+                merged = cv2.seamlessClone(
+                    face, frame, mask, (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2), cv2.NORMAL_CLONE)
 
                 merged = trim(merged, border_size)
 
-                    out_video.write(merged)
+                out_video.write(merged)
                 if preview:
-                    cv2.imshow('preview', cv2.resize(merged, (int(width * 0.2), int(height * 0.2))))
+                    cv2.imshow('preview', cv2.resize(
+                        merged, (int(width * 0.2), int(height * 0.2))))
                     cv2.waitKey(1)
 
-                pygame.display.flip()
+            pygame.display.flip()
 
     except KeyboardInterrupt:
         print("[!] Interrupted. Quitting...")
