@@ -1,7 +1,6 @@
 """
 TODO
     * Render headless: https://stackoverflow.com/questions/51627603/opengl-render-view-without-a-visible-window-in-python
-    * Add padding
     * Enable lights
     * Add more filters
     * Raise custom exception instead of RuntimeError
@@ -43,27 +42,6 @@ class ImageWriter:
     def release(self):
         pass
 
-
-def add_border(image, size=100):
-    height, width, channels = image.shape
-
-    new_width = 2 * size + width
-    new_height = 2 * size + height
-
-    result = np.zeros((new_height, new_width, channels), dtype=np.uint8)
-
-    result[size:size + height, size:size + width, :] = image
-
-    return result
-
-
-def remove_border(image, size=100):
-    height, width, _ = image.shape
-
-    original_width = width - 2 * size
-    original_height = height - 2 * size
-
-    return image[size:size + original_height, size:size + original_width, ...]
 
 
 def get_landmarks(img, flip=False, detection_confidence=0.9, tracking_confidence=0.9):
@@ -136,8 +114,13 @@ def get_writer(path, fps, width, height):
 
         return None
 
+def trim(image, p):
+    h, w, _ = image.shape
 
-def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, copy_audio=False, use_mouth_model=False):
+    w_o = w - 2 * p
+    h_o = h - 2 * p
+
+    return image[p:h_o+p, p:w_o+p, :]
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -145,6 +128,9 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
     height = int(dst_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(dst_video.get(cv2.CAP_PROP_FPS))
     num_frames = int(dst_video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    padded_width = int(width + 2 * border_size)
+    padded_height = int(height + 2 * border_size)
 
     # Find face
     src_img = cv2.imread(src)
@@ -167,7 +153,7 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
     cv2.imwrite("data/face_texture.png", mapped)
 
     # Create render surface
-    pygame.display.set_mode((width, height), OPENGL | DOUBLEBUF)
+    pygame.display.set_mode((padded_width, padded_height), OPENGL | DOUBLEBUF)
 
     # Set lights
     # TODO make lights available through args
@@ -199,15 +185,18 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
                 if not success:
                     break
 
+            frame = cv2.copyMakeBorder(frame, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT)
+
                 # Find face
                 landmarks = get_landmarks(frame, flip=True)
                 if landmarks is None:
+                frame = trim(frame, border_size)
                     out_video.write(frame)
 
                 else:
                     obj.v = landmarks
                     scaled_landmarks = np.array(
-                        [(x * width, y * height) for x, y in np.delete(landmarks, 1, axis=1)]).astype(np.int32)
+                [(x * padded_width, y * padded_height) for x, y in np.delete(landmarks, 1, axis=1)]).astype(np.int32)
 
                     obj.generate()
 
@@ -225,10 +214,10 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
 
                     # Get image from 3D model
                     glPixelStorei(GL_PACK_ALIGNMENT, 1)
-                    data = glReadPixels(0, 0, width, height,
+                data = glReadPixels(0, 0, padded_width, padded_height,
                                         GL_RGB, GL_UNSIGNED_BYTE)
                     # I'm pretty sure all of this can be done with numpy avoiding PIL
-                    image = Image.frombytes("RGB", (width, height), data)
+                image = Image.frombytes("RGB", (padded_width, padded_height), data)
                     image = ImageOps.flip(image)
                     face = np.array(image, dtype=np.uint8)
                     face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
@@ -250,6 +239,9 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
                     # Combine images
                     merged = cv2.seamlessClone(
                         face, frame, mask, (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2), cv2.NORMAL_CLONE)
+
+                merged = trim(merged, border_size)
+
                     out_video.write(merged)
 
                 pygame.display.flip()
