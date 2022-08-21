@@ -4,4 +4,4 @@ pygame
 pyopengl
 numpy
 pillow
-progressbar
+tqdm

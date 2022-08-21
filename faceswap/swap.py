@@ -14,7 +14,7 @@ import sys
 import cv2
 import mediapipe as mp
 import numpy as np
-import progressbar
+import tqdm
 import pygame
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -194,8 +194,7 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
             f"{out_name}_mask{ext}", cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
 
     try:
-        with progressbar.ProgressBar(max_value=num_frames) as pbar:
-            while True:
+        for _ in tqdm.trange(num_frames):
                 success, frame = dst_video.read()
                 if not success:
                     break
@@ -254,7 +253,6 @@ def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=F
                     out_video.write(merged)
 
                 pygame.display.flip()
-                pbar.update(pbar.value + 1)
 
     except KeyboardInterrupt:
         print("[!] Interrupted. Quitting...")
