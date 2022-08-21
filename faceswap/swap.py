@@ -121,6 +121,8 @@ def trim(image, p):
     h_o = h - 2 * p
 
     return image[p:h_o+p, p:w_o+p, :]
+
+def swap_face(src, dst, output, texture_size=256, border_size=100, output_mask=False, copy_audio=False, use_mouth_model=False, preview=True):
     dst_video = cv2.VideoCapture(dst)
 
     # Get video size/fps
@@ -193,6 +195,10 @@ def trim(image, p):
                 frame = trim(frame, border_size)
                     out_video.write(frame)
 
+                if preview:
+                    cv2.imshow('preview', cv2.resize(frame, (int(width * 0.2), int(height * 0.2))))
+                    cv2.waitKey(1)
+
                 else:
                     obj.v = landmarks
                     scaled_landmarks = np.array(
@@ -243,6 +249,9 @@ def trim(image, p):
                 merged = trim(merged, border_size)
 
                     out_video.write(merged)
+                if preview:
+                    cv2.imshow('preview', cv2.resize(merged, (int(width * 0.2), int(height * 0.2))))
+                    cv2.waitKey(1)
 
                 pygame.display.flip()
 
@@ -301,6 +310,8 @@ if __name__ == "__main__":
                         help="Copy the audio from the original video. Requires FFMPEG")
     parser.add_argument("--use_mouth_model", action="store_true",
                         help="Use the model with the uncovered mouth")
+    parser.add_argument("--preview", action="store_true",
+                        help="Preview")
 
     parsed_args = parser.parse_args(sys.argv[1:])
 
@@ -315,6 +326,7 @@ if __name__ == "__main__":
                 output_mask=parsed_args.mask,
                 copy_audio=parsed_args.audio,
                 use_mouth_model=parsed_args.use_mouth_model,
+                preview=parsed_args.preview,
             )
         except RuntimeError as e:
             print(f"[!] ERROR: {e}")
